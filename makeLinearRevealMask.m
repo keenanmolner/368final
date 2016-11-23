@@ -8,7 +8,7 @@ function revealMask = makeLinearRevealMask( xSize, ySize, baseBandPeriod, baseBa
         error('BaseBandPeriod must be an even number');
     end
 
-revealMask = zeros(xSize, ySize);
+revealMask = zeros(ySize, xSize);
 revealMask = imrotate(revealMask, baseBandAngle, 'nearest');
 
 for xi = 1:size(revealMask,2)
