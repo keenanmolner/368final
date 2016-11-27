@@ -123,10 +123,12 @@ bwImage = rgb2gray(bwImage);
 elev = bwImage;
 
 [h,w] = size(bwImage);
-bandSpacing = 4;
-bandAngle = 0;
+bandSpacing = 8;
+bandAngle = 25;
+amp = 20;
 revealMask = makeLinearRevealMask(w, h, bandSpacing, bandAngle);
-elevBandOrig = makeLinearRevealMask(w,h,bandSpacing,bandAngle);
+revealMask = cosineShift(revealMask, w/2, amp);
+elevBandOrig = cosineShift(makeLinearRevealMask(w,h,bandSpacing,bandAngle), w/2, amp);
 %elevBandOrig = makeColorMask(w,h,bandSpacing,bandAngle);
 elevBandShifted = elevBandOrig;
 max_translate = bandSpacing;
@@ -170,4 +172,30 @@ end
 
 movie(animation,10)
 
-%%
+%% how bout we play with dithering?
+clc
+close all
+clear all
+
+bwImage = im2double(imread('depth3.jpg'));
+bwImage = rgb2gray(bwImage);
+[h w] = size(bwImage);
+bandSpacing = 20;
+bandAngle = 0;
+ditherMask = makeDitherRevealMask(w, h, bandSpacing, bandAngle);
+ditheredIm = zeros([h w]);
+%% dither
+
+
+for xS = 1:h
+    for yS = 1:w
+        ditherVal = ditherMask(yS, xS);
+        bwVal = bwImage(yS, xS);
+        if(bwVal > ditherVal)
+            ditheredIm(yS, xS) = 1;
+        else
+            ditheredIm(yS, xS) = 0;
+        end
+    end
+end
+imshow(ditheredIm)
