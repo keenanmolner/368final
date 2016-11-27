@@ -48,15 +48,126 @@ clc
 close all
 clear all
 
-bwImage = im2double(imread('star.png'));
+bwImage = im2double(imread('suits.png'));
 bwImage = im2bw(bwImage);
-figure
-imPerim = bwmorph(bwImage,'remove');
-imshow(imPerim)
-figure
-imSkelFG = bwmorph(bwImage,'skel',Inf);
-imshow(imSkelFG)
-figure
-imSkelBG = bwmorph(~bwImage,'skel',Inf);
-imshow(imSkelBG)
 
+% create distance map of skeleton 
+bgDist = bwdist(bwImage);
+fgDist = bwdist(~bwImage);
+fgMax = max(fgDist(:));
+bgMax = max(bgDist(:));
+elev = zeros(size(fgDist));
+for xi = 1:size(fgDist, 2)
+    for yi = 1:size(fgDist, 1)
+        if(bwImage(yi,xi) > 0)
+            newFGval = (fgDist(yi, xi) / fgMax)/2 + 0.5;
+            elev(yi,xi) = newFGval;
+        else 
+            newBGval = (bgDist(yi, xi) / bgMax)/2;
+            elev(yi,xi) = newBGval;
+        end
+    end
+end
+imshow(elev)
+
+%% create offset band image (starBand) to translate by starDepth intensity
+[h,w] = size(elev);
+bandSpacing = 4;
+bandAngle = 30;
+revealMask = makeLinearRevealMask(w, h, bandSpacing, bandAngle);
+elevBandOrig = makeColorMask(w,h,bandSpacing,bandAngle);
+elevBandShifted = elevBandOrig;
+max_translate = bandSpacing;
+
+% multiply each pixel of starBand up by the relative brightness level on
+% elev
+for xS = 1:w
+    for yS = 1:h
+        % find intensity of starDepth image
+        pixel_intensity = elev(yS,xS);
+        % calculate new y position
+        pixel_translate = floor(pixel_intensity*max_translate);
+        pixel_ynew = yS + pixel_translate;
+        if (pixel_ynew < h)
+            elevBandShifted(pixel_ynew, xS, :) = elevBandOrig(yS,xS, :);
+        end
+    end
+end
+
+subplot(1, 2, 1)
+imshow(elevBandShifted, []);
+subplot(1, 2, 2)
+imshow(revealMask, []);
+
+%% animation test 2
+
+figure();
+clear animation
+for frame = 1:bandSpacing
+    maskShifted = imtranslate(revealMask,[0, frame]);
+    maskCombine = maskShifted.*elevBandShifted;
+    imshow(maskCombine);
+    animation(frame) = getframe(gcf);
+end
+
+movie(animation,10)
+
+%% lets try it all with a grayscale image?
+
+clc
+close all
+clear all
+
+bwImage = im2double(imread('depth1.jpg'));
+bwImage = rgb2gray(bwImage);
+elev = bwImage;
+
+[h,w] = size(bwImage);
+bandSpacing = 4;
+bandAngle = 0;
+revealMask = makeLinearRevealMask(w, h, bandSpacing, bandAngle);
+elevBandOrig = makeLinearRevealMask(w,h,bandSpacing,bandAngle);
+%elevBandOrig = makeColorMask(w,h,bandSpacing,bandAngle);
+elevBandShifted = elevBandOrig;
+max_translate = bandSpacing;
+
+% multiply each pixel of starBand up by the relative brightness level on
+% elev
+for xS = 1:w
+    for yS = 1:h
+        % find intensity of starDepth image
+        pixel_intensity = elev(yS,xS);
+        % calculate new y position
+        pixel_translate = floor(pixel_intensity*max_translate);
+        pixel_ynew = yS + pixel_translate;
+        if (pixel_ynew < h)
+            elevBandShifted(pixel_ynew, xS, :) = elevBandOrig(yS,xS, :);
+        end
+    end
+end
+
+subplot(1, 2, 1)
+imshow(elevBandShifted, []);
+subplot(1, 2, 2)
+imshow(revealMask, []);
+
+%% animation test 3
+
+figure();
+clear animation
+for frame = 1:bandSpacing
+    maskShifted = imtranslate(revealMask,[0, frame]);
+    maskCombine = maskShifted.*elevBandShifted;
+    imshow(maskCombine);
+    animation(frame) = getframe(gcf);
+end
+for frame = 1:bandSpacing
+    maskShifted = imtranslate(revealMask,[0, frame]);
+    maskCombine = maskShifted.*elevBandShifted;
+    imshow(maskCombine);
+    animation(frame) = getframe(gcf);
+end
+
+movie(animation,10)
+
+%%
