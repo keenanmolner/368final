@@ -48,51 +48,16 @@ clc
 close all
 clear all
 
-bwImage = im2double(imread('suits.png'));
-bwImage = im2bw(bwImage);
-
-% create distance map of skeleton 
-bgDist = bwdist(bwImage);
-fgDist = bwdist(~bwImage);
-fgMax = max(fgDist(:));
-bgMax = max(bgDist(:));
-elev = zeros(size(fgDist));
-for xi = 1:size(fgDist, 2)
-    for yi = 1:size(fgDist, 1)
-        if(bwImage(yi,xi) > 0)
-            newFGval = (fgDist(yi, xi) / fgMax)/2 + 0.5;
-            elev(yi,xi) = newFGval;
-        else 
-            newBGval = (bgDist(yi, xi) / bgMax)/2;
-            elev(yi,xi) = newBGval;
-        end
-    end
-end
-imshow(elev)
-
+bw = im2bw(im2double(imread('suits.png')));
+elevShifted = bwImageToDepth(bw);
+imshow(elevShifted)
 %% create offset band image (starBand) to translate by starDepth intensity
-[h,w] = size(elev);
-bandSpacing = 4;
-bandAngle = 30;
-revealMask = makeLinearRevealMask(w, h, bandSpacing, bandAngle);
-elevBandOrig = makeColorMask(w,h,bandSpacing,bandAngle);
-elevBandShifted = elevBandOrig;
-max_translate = bandSpacing;
-
-% multiply each pixel of starBand up by the relative brightness level on
-% elev
-for xS = 1:w
-    for yS = 1:h
-        % find intensity of starDepth image
-        pixel_intensity = elev(yS,xS);
-        % calculate new y position
-        pixel_translate = floor(pixel_intensity*max_translate);
-        pixel_ynew = yS + pixel_translate;
-        if (pixel_ynew < h)
-            elevBandShifted(pixel_ynew, xS, :) = elevBandOrig(yS,xS, :);
-        end
-    end
-end
+[h,w] = size(elevShifted);
+bandSpacing = 6;
+bandAngle = 0;
+%revealMask = makeLinearRevealMask(w, h, bandSpacing, bandAngle);
+revealMask = makeColorMask(w, h, bandSpacing, bandAngle);
+elevBandShifted = embedDepthInBands(revealMask, elevShifted, bandSpacing);
 
 subplot(1, 2, 1)
 imshow(elevBandShifted, []);
@@ -118,35 +83,19 @@ clc
 close all
 clear all
 
-bwImage = im2double(imread('depth1.jpg'));
-bwImage = rgb2gray(bwImage);
-elev = bwImage;
+elev = im2double(imread('depth1.jpg'));
+elev = rgb2gray(elev);
+elev = elev;
 
-[h,w] = size(bwImage);
-bandSpacing = 8;
-bandAngle = 25;
+[h,w] = size(elev);
+bandSpacing = 12;
+bandAngle = 0;
 amp = 20;
-revealMask = makeLinearRevealMask(w, h, bandSpacing, bandAngle);
-revealMask = cosineShift(revealMask, w/2, amp);
-elevBandOrig = cosineShift(makeLinearRevealMask(w,h,bandSpacing,bandAngle), w/2, amp);
+period = w/4;
+revealMask = cosineShift(makeLinearRevealMask(w,h,bandSpacing,bandAngle), period, amp);
 %elevBandOrig = makeColorMask(w,h,bandSpacing,bandAngle);
-elevBandShifted = elevBandOrig;
-max_translate = bandSpacing;
 
-% multiply each pixel of starBand up by the relative brightness level on
-% elev
-for xS = 1:w
-    for yS = 1:h
-        % find intensity of starDepth image
-        pixel_intensity = elev(yS,xS);
-        % calculate new y position
-        pixel_translate = floor(pixel_intensity*max_translate);
-        pixel_ynew = yS + pixel_translate;
-        if (pixel_ynew < h)
-            elevBandShifted(pixel_ynew, xS, :) = elevBandOrig(yS,xS, :);
-        end
-    end
-end
+elevBandShifted = embedDepthInBands(revealMask, elev, bandSpacing);
 
 subplot(1, 2, 1)
 imshow(elevBandShifted, []);
@@ -177,25 +126,102 @@ clc
 close all
 clear all
 
-bwImage = im2double(imread('depth3.jpg'));
-bwImage = rgb2gray(bwImage);
-[h w] = size(bwImage);
+elev = im2double(imread('depth3.jpg'));
+elev = rgb2gray(elev);
+[h w] = size(elev);
 bandSpacing = 20;
 bandAngle = 0;
 ditherMask = makeDitherRevealMask(w, h, bandSpacing, bandAngle);
-ditheredIm = zeros([h w]);
-%% dither
 
+%% fuck dithering! Let's play with a webcam instead.
+clc
+close all
+clear all
 
-for xS = 1:h
-    for yS = 1:w
-        ditherVal = ditherMask(yS, xS);
-        bwVal = bwImage(yS, xS);
-        if(bwVal > ditherVal)
-            ditheredIm(yS, xS) = 1;
-        else
-            ditheredIm(yS, xS) = 0;
-        end
-    end
+cam = webcam;
+
+h = 720; % built in mac camera height
+w = 1280;% built in mac camera width
+bandSpacing = 12;
+bandAngle = 0;
+amp = 20;
+period = w/4;
+%revealMask = cosineShift(makeLinearRevealMask(w, h, bandSpacing, bandAngle), period, amp);
+revealMask = cosineShift(makeColorMask(w, h, bandSpacing, bandAngle), period, amp);
+
+elev = rgb2gray(im2double(snapshot(cam)));
+elevBandShifted = embedDepthInBands(revealMask, elev, bandSpacing);
+
+figure;
+subplot(1, 2, 1)
+imshow(elevBandShifted, []);
+subplot(1, 2, 2)
+imshow(revealMask, []);
+clear cam
+
+figure();
+clear animation
+for frame = 1:bandSpacing
+    maskShifted = imtranslate(revealMask,[0, frame]);
+    maskCombine = maskShifted.*elevBandShifted;
+    imshow(maskCombine);
+    animation(frame) = getframe(gcf);
 end
-imshow(ditheredIm)
+movie(animation,10)
+%% can we hide multiple images in the same bands?
+
+clc
+close all
+clear all
+
+elev1 = rgb2gray(im2double(imread('depth1.jpg'))); %720 x 540
+elev2 = rgb2gray(im2double(imread('depth3.jpg'))); %500 x 375
+elev1 = elev1(1:375, 1:500);
+elev2 = elev2(1:375, 1:500);
+[h,w] = size(elev1);
+
+%image 1 embed
+bandSpacing = 4;
+bandAngle = 0;
+amp = 10;
+period = w/4;
+revealMask1 = cosineShift(makeLinearRevealMask(w, h, bandSpacing, bandAngle), period, amp);
+elevBandShifted1 = embedDepthInBands(revealMask1, elev1, bandSpacing);
+
+%image 2 embed
+bandSpacing = 6;
+bandAngle = 30;
+amp = 20;
+period = w;
+revealMask2 = cosineShift(makeLinearRevealMask(w, h, bandSpacing, bandAngle), period, amp);
+elevBandShifted2 = embedDepthInBands(revealMask2, elev2, bandSpacing);
+
+elevCombined = or(elevBandShifted1, elevBandShifted2);
+
+subplot(1, 3, 1)
+imshow(elevCombined, []);
+title('combined elevations');
+subplot(1, 3, 2)
+imshow(revealMask1, []);
+title('reveal mask 1');
+subplot(1, 3, 3)
+imshow(revealMask2, []);
+title('reveal mask 2');
+%%
+figure();
+clear animation
+for frame = 1:bandSpacing
+    maskShifted = imtranslate(revealMask1,[0, frame]);
+    maskCombine = maskShifted.*elevCombined;
+    imshow(maskCombine);
+    animation(frame) = getframe(gcf);
+end
+
+for frame = 1:bandSpacing
+    maskShifted = imtranslate(revealMask2,[0, frame]);
+    maskCombine = maskShifted.*elevCombined;
+    imshow(maskCombine);
+    animation(frame+bandSpacing) = getframe(gcf);
+end
+
+movie(animation,10)
