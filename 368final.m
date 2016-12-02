@@ -49,8 +49,10 @@ close all
 clear all
 
 bw = im2bw(im2double(imread('suits.png')));
+bw = imresize(bw, [1024, 1024]);
 elevShifted = bwImageToDepth(bw);
-imshow(elevShifted)
+elevShiftedSuits = bwImageToDepth(bw);
+imshow(elevShifted, [])
 %% create offset band image (starBand) to translate by starDepth intensity
 [h,w] = size(elevShifted);
 bandSpacing = 6;
@@ -83,19 +85,22 @@ clc
 close all
 clear all
 
-elev = im2double(imread('depth1.jpg'));
-elev = rgb2gray(elev);
-elev = elev;
+%elev = im2double(imread('depth1.jpg'));
+%elev = im2double(imread('depthCapture/depth_map.png'));
+elev = rgb2gray(im2double(imread('depthCapture/depth_map.png')););
+elev = 1-elev;
 
+imshow(elev);
+%
 [h,w] = size(elev);
-bandSpacing = 12;
-bandAngle = 0;
+bandSpacing = 6;
+bandAngle = 15;
 amp = 20;
 period = w/4;
 revealMask = cosineShift(makeLinearRevealMask(w,h,bandSpacing,bandAngle), period, amp);
-%elevBandOrig = makeColorMask(w,h,bandSpacing,bandAngle);
+elevBandOrig = cosineShift(makeColorMask(w,h,bandSpacing,bandAngle), period, amp);
 
-elevBandShifted = embedDepthInBands(revealMask, elev, bandSpacing);
+elevBandShifted = embedDepthInBands(elevBandOrig, elev, bandSpacing);
 
 subplot(1, 2, 1)
 imshow(elevBandShifted, []);
@@ -146,12 +151,30 @@ bandSpacing = 12;
 bandAngle = 0;
 amp = 20;
 period = w/4;
-%revealMask = cosineShift(makeLinearRevealMask(w, h, bandSpacing, bandAngle), period, amp);
-revealMask = cosineShift(makeColorMask(w, h, bandSpacing, bandAngle), period, amp);
+revealMask = cosineShift(makeLinearRevealMask(w, h, bandSpacing, bandAngle), period, amp);
+%revealMask = cosineShift(makeColorMask(w, h, bandSpacing, bandAngle), period, amp);
+pause(1);
+numFrames = 5;
+for i = 1:numFrames
+    elev(:,:,i) = rgb2gray(im2double(snapshot(cam)));
+end
+clear cam
+%%
+for i = 1:numFrames
+    elevBandShifted(:,:,i) = embedDepthInBands(revealMask, elev(:,:,i), bandSpacing);
+end
+%%
+figure();
+clear animation
+for frame = 1:numFrames
+    maskCombine = revealMask.*elevBandShifted(:,:,frame);
+    imshow(maskCombine);
+    animation(frame) = getframe(gcf);
+end
+movie(animation,10)
 
-elev = rgb2gray(im2double(snapshot(cam)));
-elevBandShifted = embedDepthInBands(revealMask, elev, bandSpacing);
 
+%%
 figure;
 subplot(1, 2, 1)
 imshow(elevBandShifted, []);
@@ -178,25 +201,38 @@ elev1 = rgb2gray(im2double(imread('depth1.jpg'))); %720 x 540
 elev2 = rgb2gray(im2double(imread('depth3.jpg'))); %500 x 375
 elev1 = elev1(1:375, 1:500);
 elev2 = elev2(1:375, 1:500);
+%%
+clc
+close all
+clear all
+bw = im2bw(im2double(imread('suits.png')));
+bw = imresize(bw, [1024 1024]);
+elev1 = bwImageToDepth(bw);
+elev2 = 1-rgb2gray(im2double(imread('depthCapture/depth_map.png')));
+elev2 = imresize(elev2, [1024 1024]);
+%%
 [h,w] = size(elev1);
 
 %image 1 embed
 bandSpacing = 4;
 bandAngle = 0;
-amp = 10;
-period = w/4;
+amp = 5;
+period = w/3;
 revealMask1 = cosineShift(makeLinearRevealMask(w, h, bandSpacing, bandAngle), period, amp);
+%revealMask1 = makeLinearRevealMask(w, h, bandSpacing, bandAngle);
+%colorMask1 = cosineShift(makeColorMask(w, h, bandSpacing, bandAngle), period, amp);
 elevBandShifted1 = embedDepthInBands(revealMask1, elev1, bandSpacing);
 
 %image 2 embed
 bandSpacing = 6;
-bandAngle = 30;
+bandAngle = 15;
 amp = 20;
 period = w;
-revealMask2 = cosineShift(makeLinearRevealMask(w, h, bandSpacing, bandAngle), period, amp);
-elevBandShifted2 = embedDepthInBands(revealMask2, elev2, bandSpacing);
+revealMask2 = makeLinearRevealMask(w, h, bandSpacing, bandAngle);
+colorMask2 = makeColorMask(w, h, bandSpacing, bandAngle);
+elevBandShifted2 = embedDepthInBands(colorMask2, elev2, bandSpacing);
 
-elevCombined = or(elevBandShifted1, elevBandShifted2);
+elevCombined = elevBandShifted1.* elevBandShifted2;
 
 subplot(1, 3, 1)
 imshow(elevCombined, []);
