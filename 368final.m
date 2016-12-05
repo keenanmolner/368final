@@ -48,21 +48,23 @@ clc
 close all
 clear all
 
-bw = im2bw(im2double(imread('suits.png')));
-bw = imresize(bw, [1024, 1024]);
+bw = im2bw(im2double(imread('368slide_squished.png')));
+%bw = imresize(bw, [1024, 1024]);
 elevShifted = bwImageToDepth(bw);
 elevShiftedSuits = bwImageToDepth(bw);
-imshow(elevShifted, [])
+imshow(elevShifted, [], 'Border','tight' )
 %% create offset band image (starBand) to translate by starDepth intensity
 [h,w] = size(elevShifted);
 bandSpacing = 6;
-bandAngle = 0;
-%revealMask = makeLinearRevealMask(w, h, bandSpacing, bandAngle);
-revealMask = makeColorMask(w, h, bandSpacing, bandAngle);
+bandAngle = 10;
+amp = 25;
+period = w/6;
+revealMask = makeLinearRevealMask(w, h, bandSpacing, bandAngle);
+%revealMaskColor = makeColorMask(w, h, bandSpacing, bandAngle);
 elevBandShifted = embedDepthInBands(revealMask, elevShifted, bandSpacing);
 
 subplot(1, 2, 1)
-imshow(elevBandShifted, []);
+imshow(elevBandShifted, [], 'Border','tight');
 subplot(1, 2, 2)
 imshow(revealMask, []);
 
@@ -73,10 +75,10 @@ clear animation
 for frame = 1:bandSpacing
     maskShifted = imtranslate(revealMask,[0, frame]);
     maskCombine = maskShifted.*elevBandShifted;
-    imshow(maskCombine);
+    imshow(maskCombine, 'Border','tight');
     animation(frame) = getframe(gcf);
 end
-
+%%
 movie(animation,10)
 
 %% lets try it all with a grayscale image?
@@ -85,13 +87,13 @@ clc
 close all
 clear all
 
-%elev = im2double(imread('depth1.jpg'));
+elev = rgb2gray(im2double(imread('depth3.jpg')));
 %elev = im2double(imread('depthCapture/depth_map.png'));
-elev = rgb2gray(im2double(imread('depthCapture/depth_map.png')););
-elev = 1-elev;
+%elev = rgb2gray(im2double(imread('depthCapture/depth_map.png')));
+%elev = 1-elev; %uncomment for kinect images
 
-imshow(elev);
-%
+imshow(elev,'Border','tight');
+%%
 [h,w] = size(elev);
 bandSpacing = 6;
 bandAngle = 15;
@@ -114,9 +116,10 @@ clear animation
 for frame = 1:bandSpacing
     maskShifted = imtranslate(revealMask,[0, frame]);
     maskCombine = maskShifted.*elevBandShifted;
-    imshow(maskCombine);
+    imshow(maskCombine,'Border','tight');
     animation(frame) = getframe(gcf);
 end
+
 for frame = 1:bandSpacing
     maskShifted = imtranslate(revealMask,[0, frame]);
     maskCombine = maskShifted.*elevBandShifted;
@@ -205,11 +208,12 @@ elev2 = elev2(1:375, 1:500);
 clc
 close all
 clear all
-bw = im2bw(im2double(imread('suits.png')));
-bw = imresize(bw, [1024 1024]);
+bw = im2bw(im2double(imread('368slide_squished.png')));
+%bw = imresize(bw, [1024 1024]);
 elev1 = bwImageToDepth(bw);
 elev2 = 1-rgb2gray(im2double(imread('depthCapture/depth_map.png')));
-elev2 = imresize(elev2, [1024 1024]);
+elev2 = 1-rgb2gray(im2double(imread('depth3.jpg')));
+%elev2 = imresize(elev2, [1024 1024]);
 %%
 [h,w] = size(elev1);
 
@@ -235,13 +239,13 @@ elevBandShifted2 = embedDepthInBands(colorMask2, elev2, bandSpacing);
 elevCombined = elevBandShifted1.* elevBandShifted2;
 
 subplot(1, 3, 1)
-imshow(elevCombined, []);
+imshow(elevCombined, [], 'Border','tight' );
 title('combined elevations');
 subplot(1, 3, 2)
-imshow(revealMask1, []);
+imshow(revealMask1, [], 'Border','tight' );
 title('reveal mask 1');
 subplot(1, 3, 3)
-imshow(revealMask2, []);
+imshow(revealMask2, [], 'Border','tight' );
 title('reveal mask 2');
 %%
 figure();
@@ -249,15 +253,15 @@ clear animation
 for frame = 1:bandSpacing
     maskShifted = imtranslate(revealMask1,[0, frame]);
     maskCombine = maskShifted.*elevCombined;
-    imshow(maskCombine);
+    imshow(maskCombine,'Border','tight' );
     animation(frame) = getframe(gcf);
 end
-
-for frame = 1:bandSpacing
+%%
+for frame = 1:bandSpacing-3
     maskShifted = imtranslate(revealMask2,[0, frame]);
     maskCombine = maskShifted.*elevCombined;
-    imshow(maskCombine);
+    imshow(maskCombine,'Border','tight');
     animation(frame+bandSpacing) = getframe(gcf);
 end
-
+%%
 movie(animation,10)
